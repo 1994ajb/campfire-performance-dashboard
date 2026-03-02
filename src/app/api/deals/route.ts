@@ -7,6 +7,11 @@ export async function GET() {
   try {
     let data = await getCachedData();
 
+    // Invalidate cache if it's missing v2 fields
+    if (data && !data.budgetProgress) {
+      data = null;
+    }
+
     if (!data) {
       const { closedWon, active, closedLost } = await fetchAllDeals();
       data = transformData(closedWon, active, closedLost);
