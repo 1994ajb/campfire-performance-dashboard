@@ -465,7 +465,7 @@ function buildCoachingData(hygiene: HygieneRow[], closedWon: Deal[], active: Dea
 
 // Fixed: scoroCount / totalActiveDeals
 function buildConversionData(closedWon: Deal[], active: Deal[]): ConversionData {
-  const scoroDeals = active.filter(d => d.stage === '879430868');
+  const scoroDeals = active.filter(d => d.stage === 'contractsent');
   const conversionRate = active.length > 0 ? (scoroDeals.length / active.length) * 100 : 0;
 
   return {

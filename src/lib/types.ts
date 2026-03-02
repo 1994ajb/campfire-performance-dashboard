@@ -221,29 +221,29 @@ export const AVATAR_HUES: Record<string, number> = {
 
 export const STAGE_MAP: Record<string, string> = {
   '879430867': 'Prospecting',
-  'qualifiedtobuy': 'Investigating',
-  'presentationscheduled': 'Penetrating',
-  'decisionmakerboughtin': 'Creating Value',
-  'contractsent': 'Preparing',
-  '879430868': 'Pitching (Scoro)',
+  'appointmentscheduled': 'Investigating',
+  'qualifiedtobuy': 'Penetrating',
+  'presentationscheduled': 'Creating Value',
+  'decisionmakerboughtin': 'Preparing',
+  'contractsent': 'Pitching (Scoro)',
   'closedwon': 'Closed Won',
   'closedlost': 'Closed Lost',
 };
 
 export const STAGE_PROBABILITIES: Record<string, number> = {
   '879430867': 0.10,
-  'qualifiedtobuy': 0.25,
-  'presentationscheduled': 0.40,
-  'decisionmakerboughtin': 0.60,
-  'contractsent': 0.80,
-  '879430868': 0.90,
+  'appointmentscheduled': 0.25,
+  'qualifiedtobuy': 0.40,
+  'presentationscheduled': 0.60,
+  'decisionmakerboughtin': 0.80,
+  'contractsent': 0.90,
 };
 
 export const ACTIVE_STAGES = [
   '879430867',
+  'appointmentscheduled',
   'qualifiedtobuy',
   'presentationscheduled',
   'decisionmakerboughtin',
   'contractsent',
-  '879430868',
 ];
