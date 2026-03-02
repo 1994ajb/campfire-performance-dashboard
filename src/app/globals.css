@@ -1,0 +1,235 @@
+@import "tailwindcss";
+
+/* ================================================
+   CAMPFIRE PERFORMANCE DASHBOARD — Design Tokens
+   ================================================ */
+
+/* Light Mode (default) */
+:root, [data-theme="light"] {
+  /* Surfaces */
+  --color-bg:             #f7f6f2;
+  --color-surface:        #f9f8f5;
+  --color-surface-2:      #fbfbf9;
+  --color-surface-offset: #f3f0ec;
+  --color-surface-offset-2: #edeae5;
+  --color-surface-dynamic: #e6e4df;
+  --color-divider:        #dcd9d5;
+  --color-border:         #d4d1ca;
+
+  /* Text */
+  --color-text:           #28251d;
+  --color-text-muted:     #7a7974;
+  --color-text-faint:     #bab9b4;
+  --color-text-inverse:   #f9f8f4;
+
+  /* Primary Accent — Campfire Amber */
+  --color-primary:        #D97706;
+  --color-primary-hover:  #B45309;
+  --color-primary-active: #92400E;
+  --color-primary-highlight: #FEF3C7;
+
+  /* Semantic */
+  --color-success:        #437a22;
+  --color-success-highlight: #d4dfcc;
+  --color-error:          #a13544;
+
+  /* Medal Colors */
+  --color-gold:           #FFD700;
+  --color-silver:         #C0C0C0;
+  --color-bronze:         #CD7F32;
+
+  /* Chart Colors */
+  --color-reactive:       #6366F1;
+  --color-proactive:      var(--color-primary);
+  --color-untagged:       rgba(40, 37, 29, 0.15);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(40, 37, 29, 0.06);
+  --shadow-md: 0 4px 12px rgba(40, 37, 29, 0.08);
+  --shadow-lg: 0 12px 32px rgba(40, 37, 29, 0.12);
+
+  /* Stage Colors */
+  --color-stage-investigating: #006494;
+  --color-stage-penetrating: #0891B2;
+  --color-stage-pitching: #7a39bb;
+}
+
+/* Dark Mode */
+[data-theme="dark"] {
+  --color-bg:             #171614;
+  --color-surface:        #1c1b19;
+  --color-surface-2:      #201f1d;
+  --color-surface-offset: #1d1c1a;
+  --color-surface-offset-2: #22211f;
+  --color-surface-dynamic: #2d2c2a;
+  --color-divider:        #262523;
+  --color-border:         #393836;
+
+  --color-text:           #cdccca;
+  --color-text-muted:     #797876;
+  --color-text-faint:     #5a5957;
+  --color-text-inverse:   #2b2a28;
+
+  --color-primary:        #F59E0B;
+  --color-primary-hover:  #FBBF24;
+  --color-primary-active: #FCD34D;
+  --color-primary-highlight: #3d3524;
+
+  --color-success:        #6daa45;
+  --color-success-highlight: #3a4435;
+  --color-error:          #dd6974;
+
+  --color-gold:           #FFD700;
+  --color-silver:         #D1D5DB;
+  --color-bronze:         #CD7F32;
+
+  --color-untagged:       rgba(205, 204, 202, 0.15);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.4);
+
+  --color-stage-investigating: #5591c7;
+  --color-stage-penetrating: #22D3EE;
+  --color-stage-pitching: #a86fdf;
+}
+
+/* Typography Scale */
+:root {
+  --text-xs:  clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+  --text-sm:  clamp(0.875rem, 0.8rem + 0.35vw, 1rem);
+  --text-base: clamp(1rem, 0.9rem + 0.5vw, 1.125rem);
+  --text-lg:  clamp(1.125rem, 0.95rem + 0.85vw, 1.5rem);
+  --text-xl:  clamp(1.5rem, 1rem + 1.5vw, 2.25rem);
+  --text-2xl: clamp(2rem, 1.2rem + 2.5vw, 3.5rem);
+}
+
+/* Spacing (4px base) */
+:root {
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+  --space-24: 6rem;
+  --space-32: 8rem;
+}
+
+/* Radius */
+:root {
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-full: 9999px;
+}
+
+/* Transitions */
+:root {
+  --transition-base: 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-chart: 600ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-dropdown: 400ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ================================================
+   Base Styles
+   ================================================ */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Skip to content link */
+.skip-to-content {
+  position: absolute;
+  left: -9999px;
+  top: var(--space-2);
+  z-index: 100;
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.skip-to-content:focus {
+  left: var(--space-4);
+}
+
+/* Focus visible */
+*:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+/* Section animations */
+.section-animate {
+  opacity: 1;
+}
+
+@supports (animation-timeline: view()) {
+  .section-animate {
+    animation: fadeSlideIn linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 30%;
+  }
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .section-animate {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-surface);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-faint);
+}
