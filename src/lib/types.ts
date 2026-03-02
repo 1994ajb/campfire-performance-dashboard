@@ -232,11 +232,11 @@ export const STAGE_MAP: Record<string, string> = {
 
 export const STAGE_PROBABILITIES: Record<string, number> = {
   '879430867': 0.10,
-  'appointmentscheduled': 0.25,
+  'appointmentscheduled': 0.20,
   'qualifiedtobuy': 0.40,
   'presentationscheduled': 0.60,
-  'decisionmakerboughtin': 0.80,
-  'contractsent': 0.90,
+  'decisionmakerboughtin': 0.70,
+  'contractsent': 0.80,
 };
 
 export const ACTIVE_STAGES = [
