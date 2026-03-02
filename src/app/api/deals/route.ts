@@ -5,13 +5,11 @@ import { transformData } from '@/lib/transform';
 
 export async function GET() {
   try {
-    // Try cache first
     let data = await getCachedData();
 
     if (!data) {
-      // Cache miss — fetch fresh data
-      const { closedWon, active } = await fetchAllDeals();
-      data = transformData(closedWon, active);
+      const { closedWon, active, closedLost } = await fetchAllDeals();
+      data = transformData(closedWon, active, closedLost);
       await setCachedData(data);
     }
 

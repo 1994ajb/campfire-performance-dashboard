@@ -27,7 +27,7 @@ export default function ConversionNote({ data }: ConversionNoteProps) {
           Closed Won: <strong style={{ color: 'var(--color-text)' }}>{data.closedWonCount} deals</strong>
           {' · '}
           Conversion to Scoro stage: <strong style={{ color: 'var(--color-text)' }}>
-            {data.scoroCount} of {data.totalPitchingAndWon} ({data.conversionRate}%)
+            {data.scoroCount} of {data.totalActiveDeals} ({data.conversionRate}%)
           </strong>
         </span>
       </div>

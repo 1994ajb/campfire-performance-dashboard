@@ -1,10 +1,13 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { DashboardData } from '@/lib/types';
+import { filterDashboardData } from '@/lib/dateFilter';
 import Header from './Header';
 import KPICards from './KPICards';
+import BudgetProgressBar from './BudgetProgressBar';
 import TeamSnapshot from './TeamSnapshot';
+import DateRangeFilter, { DateRange } from './DateRangeFilter';
 import RevenueLeaderboard from './RevenueLeaderboard';
 import ProactiveLeaderboard from './ProactiveLeaderboard';
 import MilestoneNudges from './MilestoneNudges';
@@ -13,6 +16,7 @@ import ProactiveRevenueChart from './ProactiveRevenueChart';
 import ConversionNote from './ConversionNote';
 import PipelineFlow from './PipelineFlow';
 import TopActiveDeals from './TopActiveDeals';
+import StaleDealAlerts from './StaleDealAlerts';
 import HygieneChecklist from './HygieneChecklist';
 import CoachingPanel from './CoachingPanel';
 
@@ -24,6 +28,7 @@ export default function Dashboard({ initialData }: DashboardProps) {
   const [data, setData] = useState<DashboardData | null>(initialData);
   const [loading, setLoading] = useState(!initialData);
   const [error, setError] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange>('ytd');
 
   const fetchData = useCallback(async () => {
     try {
@@ -50,6 +55,11 @@ export default function Dashboard({ initialData }: DashboardProps) {
     fetchData();
   };
 
+  const filtered = useMemo(() => {
+    if (!data) return null;
+    return filterDashboardData(data, dateRange);
+  }, [data, dateRange]);
+
   if (loading) {
     return (
       <div style={{
@@ -71,7 +81,7 @@ export default function Dashboard({ initialData }: DashboardProps) {
     );
   }
 
-  if (error || !data) {
+  if (error || !filtered) {
     return (
       <div style={{
         display: 'flex',
@@ -107,7 +117,7 @@ export default function Dashboard({ initialData }: DashboardProps) {
   return (
     <>
       <a href="#main-content" className="skip-to-content">Skip to content</a>
-      <Header updatedAt={data.updatedAt} onRefresh={handleRefresh} />
+      <Header updatedAt={filtered.updatedAt} onRefresh={handleRefresh} />
 
       <main id="main-content" style={{
         maxWidth: 1440,
@@ -117,11 +127,19 @@ export default function Dashboard({ initialData }: DashboardProps) {
         flexDirection: 'column',
         gap: 'var(--space-6)',
       }}>
+        {/* Date Range Filter */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <DateRangeFilter value={dateRange} onChange={setDateRange} />
+        </div>
+
         {/* KPI Cards */}
-        <KPICards data={data.kpis} />
+        <KPICards data={filtered.kpis} />
+
+        {/* Budget Progress */}
+        <BudgetProgressBar data={filtered.budgetProgress} />
 
         {/* Team Snapshot */}
-        <TeamSnapshot data={data.snapshot} />
+        <TeamSnapshot data={filtered.snapshot} />
 
         {/* Leaderboards — 2 column */}
         <div className="leaderboard-grid" style={{
@@ -129,10 +147,10 @@ export default function Dashboard({ initialData }: DashboardProps) {
           gridTemplateColumns: '1.2fr 0.8fr',
           gap: 'var(--space-6)',
         }}>
-          <RevenueLeaderboard data={data.revenueLeaderboard} />
+          <RevenueLeaderboard data={filtered.revenueLeaderboard} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-            <ProactiveLeaderboard data={data.proactiveLeaderboard} />
-            <MilestoneNudges data={data.milestoneNudges} />
+            <ProactiveLeaderboard data={filtered.proactiveLeaderboard} />
+            <MilestoneNudges data={filtered.milestoneNudges} />
           </div>
         </div>
 
@@ -142,23 +160,26 @@ export default function Dashboard({ initialData }: DashboardProps) {
           gridTemplateColumns: '1fr 1fr',
           gap: 'var(--space-6)',
         }}>
-          <MonthlyRevenueChart data={data.monthlyRevenue} />
-          <ProactiveRevenueChart data={data.stackedRevenue} />
+          <MonthlyRevenueChart data={filtered.monthlyRevenue} />
+          <ProactiveRevenueChart data={filtered.stackedRevenue} />
         </div>
 
         {/* Conversion Note */}
-        <ConversionNote data={data.conversion} />
+        <ConversionNote data={filtered.conversion} />
 
         {/* Pipeline Flow */}
-        <PipelineFlow data={data.pipelineStages} />
+        <PipelineFlow data={filtered.pipelineStages} />
 
         {/* Top Active Deals */}
-        <TopActiveDeals data={data.topActiveDeals} />
+        <TopActiveDeals data={filtered.topActiveDeals} />
+
+        {/* Stale Deal Alerts */}
+        <StaleDealAlerts data={filtered.staleDeals} />
 
         {/* Hygiene Section */}
         <div>
-          <HygieneChecklist data={data.hygiene} />
-          <CoachingPanel data={data.coaching} />
+          <HygieneChecklist data={filtered.hygiene} />
+          <CoachingPanel data={filtered.coaching} />
         </div>
       </main>
 

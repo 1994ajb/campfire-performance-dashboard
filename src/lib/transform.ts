@@ -1,4 +1,4 @@
-import { format, subDays, parseISO, startOfMonth, isAfter } from 'date-fns';
+import { format, parseISO, differenceInDays } from 'date-fns';
 import {
   Deal,
   DashboardData,
@@ -14,11 +14,13 @@ import {
   MilestoneNudge,
   CoachingData,
   ConversionData,
-  DealDetail,
+  BudgetProgress,
+  StaleDeal,
   AVATAR_HUES,
   STAGE_MAP,
   STAGE_PROBABILITIES,
   ACTIVE_STAGES,
+  FY_BUDGET,
 } from './types';
 
 function getAvatarHue(name: string): number {
@@ -33,15 +35,27 @@ function buildRevenueLeaderboard(closedWon: Deal[]): LeaderboardEntry[] {
     byOwner.set(deal.ownerId, existing);
   }
 
-  const thirtyDaysAgo = subDays(new Date(), 30);
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
   const entries: LeaderboardEntry[] = [];
   for (const [ownerId, deals] of byOwner) {
     const total = deals.reduce((sum, d) => sum + d.amount, 0);
     const recentDeal = deals.some(d => {
+      if (!d.closeDate) return false;
       const cd = parseISO(d.closeDate);
-      return isAfter(cd, thirtyDaysAgo);
+      return cd > thirtyDaysAgo;
     });
+
+    // Monthly totals for sparklines (Jan–Dec 2026)
+    const monthlyTotals = new Array(12).fill(0);
+    for (const deal of deals) {
+      if (!deal.closeDate) continue;
+      const date = parseISO(deal.closeDate);
+      if (date.getFullYear() === 2026) {
+        monthlyTotals[date.getMonth()] += deal.amount;
+      }
+    }
 
     entries.push({
       ownerId,
@@ -55,6 +69,7 @@ function buildRevenueLeaderboard(closedWon: Deal[]): LeaderboardEntry[] {
         closeDate: d.closeDate,
         type: d.type,
       })),
+      monthlyTotals,
       rank: 0,
       avatarHue: getAvatarHue(deals[0].ownerName),
     });
@@ -124,7 +139,6 @@ function buildMonthlyRevenue(closedWon: Deal[]): MonthlyRevenue[] {
     byMonth.set(key, (byMonth.get(key) || 0) + deal.amount);
   }
 
-  // Generate all months from Jan 2026 to current month
   const months: MonthlyRevenue[] = [];
   const start = new Date(2026, 0, 1);
   let current = start;
@@ -204,7 +218,7 @@ function getTopActiveDeals(active: Deal[]): ActiveDeal[] {
     }));
 }
 
-function buildTeamSnapshot(closedWon: Deal[]): TeamSnapshot {
+function buildTeamSnapshot(closedWon: Deal[], active: Deal[], closedLost: Deal[]): TeamSnapshot {
   const biggestDeal = closedWon.reduce(
     (max, d) => (d.amount > max.amount ? d : max),
     closedWon[0] || { name: 'N/A', amount: 0, ownerName: 'N/A' }
@@ -213,8 +227,25 @@ function buildTeamSnapshot(closedWon: Deal[]): TeamSnapshot {
   const totalRevenue = closedWon.reduce((sum, d) => sum + d.amount, 0);
   const avgDealSize = closedWon.length > 0 ? totalRevenue / closedWon.length : 0;
 
-  const taggedDeals = closedWon.filter(d => d.type !== 'Untagged');
+  // Proactive rate uses ALL deals (closed won + active) that are tagged
+  const allDeals = [...closedWon, ...active];
+  const taggedDeals = allDeals.filter(d => d.type !== 'Untagged');
   const proactiveDeals = taggedDeals.filter(d => d.type === 'Proactive');
+
+  // Win rate: closed won vs (closed won + closed lost) in FY2026
+  const wonCount = closedWon.length;
+  const lostCount = closedLost.length;
+  const winRateVal = (wonCount + lostCount) > 0 ? (wonCount / (wonCount + lostCount)) * 100 : 0;
+
+  // Deal velocity: average days from create to close for closed won deals
+  const velocityDeals = closedWon.filter(d => d.createDate && d.closeDate);
+  let avgDays = 0;
+  if (velocityDeals.length > 0) {
+    const totalDays = velocityDeals.reduce((sum, d) => {
+      return sum + differenceInDays(parseISO(d.closeDate), parseISO(d.createDate));
+    }, 0);
+    avgDays = Math.round(totalDays / velocityDeals.length);
+  }
 
   return {
     biggestWin: {
@@ -229,12 +260,23 @@ function buildTeamSnapshot(closedWon: Deal[]): TeamSnapshot {
       total: taggedDeals.length,
       percentage: taggedDeals.length > 0 ? (proactiveDeals.length / taggedDeals.length) * 100 : 0,
     },
+    winRate: {
+      won: wonCount,
+      lost: lostCount,
+      rate: Math.round(winRateVal),
+    },
+    dealVelocity: {
+      averageDays: avgDays,
+      dealCount: velocityDeals.length,
+    },
   };
 }
 
-function buildHygieneData(closedWon: Deal[]): HygieneRow[] {
+// Hygiene uses BOTH closed won and active pipeline deals
+function buildHygieneData(closedWon: Deal[], active: Deal[]): HygieneRow[] {
+  const allDeals = [...closedWon, ...active];
   const byOwner = new Map<string, Deal[]>();
-  for (const deal of closedWon) {
+  for (const deal of allDeals) {
     const existing = byOwner.get(deal.ownerId) || [];
     existing.push(deal);
     byOwner.set(deal.ownerId, existing);
@@ -279,7 +321,6 @@ function buildHygieneData(closedWon: Deal[]): HygieneRow[] {
 function buildMilestoneNudges(leaderboard: LeaderboardEntry[]): MilestoneNudge[] {
   const nudges: MilestoneNudge[] = [];
 
-  // Find person closest to a round number milestone
   for (const entry of leaderboard) {
     const milestones = [25000, 30000, 50000, 75000, 100000, 150000, 200000, 250000, 300000, 500000, 750000, 1000000];
     for (const milestone of milestones) {
@@ -300,7 +341,6 @@ function buildMilestoneNudges(leaderboard: LeaderboardEntry[]): MilestoneNudge[]
     if (nudges.length >= 1) break;
   }
 
-  // Person leading by deal count
   const byDealCount = [...leaderboard].sort((a, b) => b.dealCount - a.dealCount);
   if (byDealCount.length >= 1) {
     const leader = byDealCount[0];
@@ -311,7 +351,6 @@ function buildMilestoneNudges(leaderboard: LeaderboardEntry[]): MilestoneNudge[]
     });
   }
 
-  // Person who needs one more deal to catch someone
   if (byDealCount.length >= 2) {
     for (let i = 1; i < byDealCount.length; i++) {
       if (byDealCount[i - 1].dealCount - byDealCount[i].dealCount === 1) {
@@ -328,7 +367,7 @@ function buildMilestoneNudges(leaderboard: LeaderboardEntry[]): MilestoneNudge[]
   return nudges.slice(0, 3);
 }
 
-function buildCoachingData(hygiene: HygieneRow[]): CoachingData {
+function buildCoachingData(hygiene: HygieneRow[], closedWon: Deal[], active: Deal[]): CoachingData {
   const fieldNames = ['dealType', 'services', 'projectLength', 'proactiveReactive', 'syncedEmails', 'linkedContact', 'linkedCompany'] as const;
   const fieldLabels: Record<string, string> = {
     dealType: 'Deal Type',
@@ -340,7 +379,6 @@ function buildCoachingData(hygiene: HygieneRow[]): CoachingData {
     linkedCompany: 'Linked Company',
   };
 
-  // Calculate team-wide stats per field
   const fieldStats = fieldNames.map(field => {
     const totalFilled = hygiene.reduce((sum, r) => sum + r[field].filled, 0);
     const totalDeals = hygiene.reduce((sum, r) => sum + r[field].total, 0);
@@ -348,7 +386,7 @@ function buildCoachingData(hygiene: HygieneRow[]): CoachingData {
     return { field, label: fieldLabels[field], pct, totalFilled, totalDeals };
   });
 
-  // Doing well: fields at or near 100%
+  // Doing well: celebrate specifics
   const doingWell: string[] = [];
   const highFields = fieldStats.filter(f => f.pct >= 85);
   if (highFields.length > 0) {
@@ -357,6 +395,15 @@ function buildCoachingData(hygiene: HygieneRow[]): CoachingData {
   const perfectPeople = hygiene.filter(r => r.overallPercentage >= 95);
   for (const person of perfectPeople) {
     doingWell.push(`${person.ownerName} is at ${Math.round(person.overallPercentage)}% — setting the standard.`);
+  }
+  // Highlight top revenue earner
+  const byRevenue = new Map<string, number>();
+  for (const deal of closedWon) {
+    byRevenue.set(deal.ownerName, (byRevenue.get(deal.ownerName) || 0) + deal.amount);
+  }
+  const topEarner = [...byRevenue.entries()].sort((a, b) => b[1] - a[1])[0];
+  if (topEarner) {
+    doingWell.push(`${topEarner[0]} is leading revenue at £${Math.round(topEarner[1]).toLocaleString('en-GB')} closed this year.`);
   }
   if (doingWell.length === 0) {
     doingWell.push('Great effort from the whole team — every improvement counts!');
@@ -373,44 +420,114 @@ function buildCoachingData(hygiene: HygieneRow[]): CoachingData {
     }
   }
 
-  // Focus areas: lowest performing fields
+  // Focus areas: lowest performing fields with specific names
   const sortedFields = [...fieldStats].sort((a, b) => a.pct - b.pct);
-  const focusAreas = sortedFields
-    .filter(f => f.pct < 80)
-    .slice(0, 3)
-    .map(f => `${f.label} is at ${Math.round(f.pct)}% across the team — let's build this habit together.`);
+  const focusAreas: string[] = [];
+  for (const f of sortedFields.filter(f => f.pct < 80).slice(0, 3)) {
+    // Find worst person for this field
+    const worstPerson = [...hygiene]
+      .filter(r => r[f.field as keyof HygieneRow] && typeof r[f.field as keyof HygieneRow] === 'object')
+      .sort((a, b) => {
+        const aField = a[f.field as keyof HygieneRow] as { filled: number; total: number };
+        const bField = b[f.field as keyof HygieneRow] as { filled: number; total: number };
+        const aPct = aField.total > 0 ? aField.filled / aField.total : 1;
+        const bPct = bField.total > 0 ? bField.filled / bField.total : 1;
+        return aPct - bPct;
+      })[0];
+    if (worstPerson) {
+      const fieldData = worstPerson[f.field as keyof HygieneRow] as { filled: number; total: number };
+      focusAreas.push(`${f.label} is at ${Math.round(f.pct)}% across the team — ${worstPerson.ownerName} has ${fieldData.filled}/${fieldData.total} filled.`);
+    } else {
+      focusAreas.push(`${f.label} is at ${Math.round(f.pct)}% across the team — let's build this habit together.`);
+    }
+  }
   if (focusAreas.length === 0) {
     focusAreas.push('All fields are above 80% — amazing work! Let\'s push for 100% across the board.');
   }
 
-  // Weekly challenge
+  // Weekly challenge — personalized
   const lowestField = sortedFields[0];
   const teamAvg = hygiene.length > 0
     ? hygiene.reduce((sum, r) => sum + r.overallPercentage, 0) / hygiene.length
     : 0;
-  const weeklyChallenge = teamAvg < 70
-    ? `This week's goal: get the team average above 70%. Currently at ${Math.round(teamAvg)}% — we can do this!`
-    : teamAvg < 90
-    ? `This week's goal: push the team average past 90%. We're at ${Math.round(teamAvg)}% — almost there!`
-    : `Incredible work! Team average is ${Math.round(teamAvg)}%. Challenge: get everyone to 100% on ${lowestField.label}.`;
+  const lowestPerson = [...hygiene].sort((a, b) => a.overallPercentage - b.overallPercentage)[0];
+  let weeklyChallenge: string;
+  if (teamAvg < 70) {
+    weeklyChallenge = `This week's goal: get the team average above 70%. Currently at ${Math.round(teamAvg)}%.${lowestPerson ? ` ${lowestPerson.ownerName}, focus on ${lowestField.label} to make the biggest impact.` : ''}`;
+  } else if (teamAvg < 90) {
+    weeklyChallenge = `This week's goal: push the team average past 90%. We're at ${Math.round(teamAvg)}%.${lowestPerson ? ` ${lowestPerson.ownerName}, a few updates to ${lowestField.label} could get us there.` : ''}`;
+  } else {
+    weeklyChallenge = `Incredible work! Team average is ${Math.round(teamAvg)}%. Challenge: get everyone to 100% on ${lowestField.label}.`;
+  }
 
-  return { doingWell, quickWins: quickWins.slice(0, 5), focusAreas, weeklyChallenge };
+  return { doingWell: doingWell.slice(0, 4), quickWins: quickWins.slice(0, 5), focusAreas, weeklyChallenge };
 }
 
+// Fixed: scoroCount / totalActiveDeals
 function buildConversionData(closedWon: Deal[], active: Deal[]): ConversionData {
   const scoroDeals = active.filter(d => d.stage === '879430868');
-  const totalPitchingAndWon = scoroDeals.length + closedWon.length;
-  const conversionRate = totalPitchingAndWon > 0 ? (closedWon.length / totalPitchingAndWon) * 100 : 0;
+  const conversionRate = active.length > 0 ? (scoroDeals.length / active.length) * 100 : 0;
 
   return {
     closedWonCount: closedWon.length,
     scoroCount: scoroDeals.length,
-    totalPitchingAndWon,
+    totalActiveDeals: active.length,
     conversionRate: Math.round(conversionRate),
   };
 }
 
-export function transformData(closedWon: Deal[], active: Deal[]): DashboardData {
+function buildBudgetProgress(closedWon: Deal[]): BudgetProgress {
+  const current = closedWon.reduce((sum, d) => sum + d.amount, 0);
+  const percentage = (current / FY_BUDGET) * 100;
+
+  const now = new Date();
+  const fyStart = new Date(2026, 0, 1);
+  const fyEnd = new Date(2026, 11, 31);
+  const totalMonths = 12;
+  const monthsElapsed = Math.max(1, now.getMonth() - fyStart.getMonth() + 1);
+  const monthsRemaining = Math.max(0, totalMonths - monthsElapsed);
+
+  const runRate = monthsElapsed > 0 ? current / monthsElapsed : 0;
+  const projected = runRate * totalMonths;
+  const onTrack = projected >= FY_BUDGET;
+
+  return {
+    target: FY_BUDGET,
+    current: Math.round(current),
+    percentage: Math.round(percentage * 10) / 10,
+    runRate: Math.round(runRate),
+    projected: Math.round(projected),
+    onTrack,
+    monthsRemaining,
+    monthsElapsed,
+  };
+}
+
+function buildStaleDealAlerts(active: Deal[]): StaleDeal[] {
+  const now = new Date();
+  const stale: StaleDeal[] = [];
+
+  for (const deal of active) {
+    if (!deal.lastModifiedDate) continue;
+    const lastMod = parseISO(deal.lastModifiedDate);
+    const days = differenceInDays(now, lastMod);
+    if (days >= 30) {
+      stale.push({
+        name: deal.name,
+        value: deal.amount,
+        ownerName: deal.ownerName,
+        stageName: deal.stageName,
+        daysSinceActivity: days,
+        lastModified: deal.lastModifiedDate,
+      });
+    }
+  }
+
+  stale.sort((a, b) => b.daysSinceActivity - a.daysSinceActivity);
+  return stale;
+}
+
+export function transformData(closedWon: Deal[], active: Deal[], closedLost: Deal[]): DashboardData {
   const revenueLeaderboard = buildRevenueLeaderboard(closedWon);
   const proactiveLeaderboard = buildProactiveLeaderboard(closedWon, active);
   const kpis = calculateKPIs(closedWon, active);
@@ -418,11 +535,13 @@ export function transformData(closedWon: Deal[], active: Deal[]): DashboardData 
   const stackedRevenue = buildStackedRevenue(closedWon);
   const pipelineStages = buildPipelineStages(active);
   const topActiveDeals = getTopActiveDeals(active);
-  const snapshot = buildTeamSnapshot(closedWon);
-  const hygiene = buildHygieneData(closedWon);
+  const snapshot = buildTeamSnapshot(closedWon, active, closedLost);
+  const hygiene = buildHygieneData(closedWon, active);
   const milestoneNudges = buildMilestoneNudges(revenueLeaderboard);
-  const coaching = buildCoachingData(hygiene);
+  const coaching = buildCoachingData(hygiene, closedWon, active);
   const conversion = buildConversionData(closedWon, active);
+  const budgetProgress = buildBudgetProgress(closedWon);
+  const staleDeals = buildStaleDealAlerts(active);
 
   return {
     kpis,
@@ -437,6 +556,9 @@ export function transformData(closedWon: Deal[], active: Deal[]): DashboardData 
     topActiveDeals,
     hygiene,
     coaching,
+    budgetProgress,
+    staleDeals,
+    closedWonRaw: closedWon,
     updatedAt: new Date().toISOString(),
   };
 }

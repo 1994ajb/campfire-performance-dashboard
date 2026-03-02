@@ -63,6 +63,36 @@ function Avatar({ name, hue }: { name: string; hue: number }) {
   );
 }
 
+function Sparkline({ data }: { data: number[] }) {
+  const currentMonth = new Date().getMonth();
+  const visible = data.slice(0, currentMonth + 1);
+  if (visible.length < 2 || visible.every(v => v === 0)) return null;
+
+  const max = Math.max(...visible);
+  const w = 60;
+  const h = 20;
+  const points = visible
+    .map((v, i) => {
+      const x = (i / (visible.length - 1)) * w;
+      const y = max > 0 ? h - (v / max) * (h - 2) - 1 : h - 1;
+      return `${x},${y}`;
+    })
+    .join(' ');
+
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true" style={{ flexShrink: 0 }}>
+      <polyline
+        points={points}
+        fill="none"
+        stroke="var(--color-primary)"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export default function RevenueLeaderboard({ data }: RevenueLeaderboardProps) {
   const [sortBy, setSortBy] = useState<'revenue' | 'deals'>('revenue');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -187,8 +217,11 @@ export default function RevenueLeaderboard({ data }: RevenueLeaderboardProps) {
                   </div>
 
                   {/* Revenue */}
+                  {/* Sparkline */}
+                  <Sparkline data={entry.monthlyTotals} />
+
                   <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>
-                    £{entry.total.toLocaleString('en-GB')}
+                    £{Math.round(entry.total).toLocaleString('en-GB')}
                   </div>
 
                   {/* Chevron */}

@@ -5,6 +5,8 @@ export interface Deal {
   ownerId: string;
   ownerName: string;
   closeDate: string;
+  createDate: string;
+  lastModifiedDate: string;
   stage: string;
   stageName: string;
   dealType: string;
@@ -28,6 +30,7 @@ export interface LeaderboardEntry {
   dealCount: number;
   recentDeal: boolean;
   deals: DealDetail[];
+  monthlyTotals: number[];
   rank: number;
   avatarHue: number;
 }
@@ -101,6 +104,15 @@ export interface TeamSnapshot {
     total: number;
     percentage: number;
   };
+  winRate: {
+    won: number;
+    lost: number;
+    rate: number;
+  };
+  dealVelocity: {
+    averageDays: number;
+    dealCount: number;
+  };
 }
 
 export interface HygieneRow {
@@ -134,8 +146,28 @@ export interface CoachingData {
 export interface ConversionData {
   closedWonCount: number;
   scoroCount: number;
-  totalPitchingAndWon: number;
+  totalActiveDeals: number;
   conversionRate: number;
+}
+
+export interface BudgetProgress {
+  target: number;
+  current: number;
+  percentage: number;
+  runRate: number;
+  projected: number;
+  onTrack: boolean;
+  monthsRemaining: number;
+  monthsElapsed: number;
+}
+
+export interface StaleDeal {
+  name: string;
+  value: number;
+  ownerName: string;
+  stageName: string;
+  daysSinceActivity: number;
+  lastModified: string;
 }
 
 export interface DashboardData {
@@ -151,8 +183,13 @@ export interface DashboardData {
   topActiveDeals: ActiveDeal[];
   hygiene: HygieneRow[];
   coaching: CoachingData;
+  budgetProgress: BudgetProgress;
+  staleDeals: StaleDeal[];
+  closedWonRaw: Deal[];
   updatedAt: string;
 }
+
+export const FY_BUDGET = 5300000;
 
 export const OWNER_MAP: OwnerMap = {
   '31267663': 'Claire Banks',

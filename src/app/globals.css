@@ -233,3 +233,63 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-text-faint);
 }
+
+/* ================================================
+   Print Styles — Export to PDF
+   ================================================ */
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  body {
+    background: white !important;
+    color: #28251d !important;
+  }
+
+  header {
+    position: static !important;
+    box-shadow: none !important;
+    border-bottom: 2px solid #d4d1ca !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .section-animate {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  main {
+    padding: 1rem !important;
+    gap: 1rem !important;
+  }
+
+  .snapshot-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+
+  .leaderboard-grid,
+  .charts-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  table {
+    font-size: 11px !important;
+  }
+
+  svg {
+    max-width: 100% !important;
+  }
+
+  a[href]::after {
+    content: none !important;
+  }
+}

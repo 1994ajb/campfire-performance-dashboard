@@ -112,7 +112,7 @@ export default function DealDetailDropdown({ deals, isOpen, showStage }: DealDet
               }}>
                 <td style={{ padding: 'var(--space-2) var(--space-3)', color: 'var(--color-text)' }}>{deal.name}</td>
                 <td style={{ padding: 'var(--space-2) var(--space-3)', textAlign: 'right', fontWeight: 600, color: 'var(--color-text)' }}>
-                  £{deal.amount.toLocaleString('en-GB')}
+                  £{Math.round(deal.amount).toLocaleString('en-GB')}
                 </td>
                 {!showStage && (
                   <td style={{ padding: 'var(--space-2) var(--space-3)', color: 'var(--color-text-muted)' }}>

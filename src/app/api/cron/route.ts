@@ -10,8 +10,8 @@ export async function GET(request: Request) {
   }
 
   try {
-    const { closedWon, active } = await fetchAllDeals();
-    const data = transformData(closedWon, active);
+    const { closedWon, active, closedLost } = await fetchAllDeals();
+    const data = transformData(closedWon, active, closedLost);
     await setCachedData(data);
 
     return NextResponse.json({ success: true, updatedAt: data.updatedAt });

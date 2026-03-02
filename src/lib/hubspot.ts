@@ -14,6 +14,8 @@ const DEAL_PROPERTIES = [
   'amount',
   'hubspot_owner_id',
   'closedate',
+  'createdate',
+  'hs_lastmodifieddate',
   'dealstage',
   'dealtype',
   'services',
@@ -51,7 +53,6 @@ function mapDeal(raw: Record<string, unknown>, companyMap: Map<string, boolean>)
   const props = raw.properties as Record<string, string | null>;
   const ownerId = props.hubspot_owner_id || '';
 
-  // Exclude Sophie Angell
   if (ownerId === EXCLUDED_OWNER_ID) return null;
 
   const dealId = raw.id as string;
@@ -65,6 +66,8 @@ function mapDeal(raw: Record<string, unknown>, companyMap: Map<string, boolean>)
     ownerId,
     ownerName,
     closeDate: props.closedate || '',
+    createDate: props.createdate || '',
+    lastModifiedDate: props.hs_lastmodifieddate || '',
     stage,
     stageName: STAGE_MAP[stage] || stage,
     dealType: props.dealtype || '',
@@ -105,7 +108,6 @@ export async function fetchClosedWonDeals(): Promise<Deal[]> {
     const data = await res.json();
     const results = data.results || [];
 
-    // Batch fetch company associations
     const dealIds = results.map((d: Record<string, unknown>) => d.id as string);
     const companyMap = await fetchCompanyAssociations(dealIds);
 
@@ -120,44 +122,84 @@ export async function fetchClosedWonDeals(): Promise<Deal[]> {
   return deals;
 }
 
+// Single paginated query for all active pipeline deals
 export async function fetchActiveDeals(): Promise<Deal[]> {
   const deals: Deal[] = [];
+  let after: string | undefined;
 
-  for (const stageId of ACTIVE_STAGES) {
-    let after: string | undefined;
-    do {
-      const body: Record<string, unknown> = {
-        filterGroups: [
-          {
-            filters: [
-              { propertyName: 'dealstage', operator: 'EQ', value: stageId },
-            ],
-          },
-        ],
-        properties: DEAL_PROPERTIES,
-        sorts: [{ propertyName: 'amount', direction: 'DESCENDING' }],
-        limit: 100,
-        ...(after ? { after } : {}),
-      };
+  do {
+    const body: Record<string, unknown> = {
+      filterGroups: [
+        {
+          filters: [
+            { propertyName: 'dealstage', operator: 'IN', values: ACTIVE_STAGES },
+          ],
+        },
+      ],
+      properties: DEAL_PROPERTIES,
+      sorts: [{ propertyName: 'amount', direction: 'DESCENDING' }],
+      limit: 100,
+      ...(after ? { after } : {}),
+    };
 
-      const res = await hubspotFetch('/crm/v3/objects/deals/search', {
-        method: 'POST',
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      const results = data.results || [];
+    const res = await hubspotFetch('/crm/v3/objects/deals/search', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    const results = data.results || [];
 
-      const dealIds = results.map((d: Record<string, unknown>) => d.id as string);
-      const companyMap = await fetchCompanyAssociations(dealIds);
+    const dealIds = results.map((d: Record<string, unknown>) => d.id as string);
+    const companyMap = await fetchCompanyAssociations(dealIds);
 
-      for (const raw of results) {
-        const deal = mapDeal(raw, companyMap);
-        if (deal) deals.push(deal);
-      }
+    for (const raw of results) {
+      const deal = mapDeal(raw, companyMap);
+      if (deal) deals.push(deal);
+    }
 
-      after = data.paging?.next?.after;
-    } while (after);
-  }
+    after = data.paging?.next?.after;
+  } while (after);
+
+  return deals;
+}
+
+export async function fetchClosedLostDeals(): Promise<Deal[]> {
+  const deals: Deal[] = [];
+  let after: string | undefined;
+
+  do {
+    const body: Record<string, unknown> = {
+      filterGroups: [
+        {
+          filters: [
+            { propertyName: 'dealstage', operator: 'EQ', value: 'closedlost' },
+            { propertyName: 'closedate', operator: 'GTE', value: '2026-01-01' },
+          ],
+        },
+      ],
+      properties: DEAL_PROPERTIES,
+      sorts: [{ propertyName: 'amount', direction: 'DESCENDING' }],
+      limit: 100,
+      ...(after ? { after } : {}),
+    };
+
+    const res = await hubspotFetch('/crm/v3/objects/deals/search', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    const results = data.results || [];
+
+    const dealIds = results.map((d: Record<string, unknown>) => d.id as string);
+    const companyMap = await fetchCompanyAssociations(dealIds);
+
+    for (const raw of results) {
+      const deal = mapDeal(raw, companyMap);
+      if (deal) deals.push(deal);
+    }
+
+    after = data.paging?.next?.after;
+  } while (after);
 
   return deals;
 }
@@ -180,13 +222,11 @@ async function fetchCompanyAssociations(dealIds: string[]): Promise<Map<string, 
       if (dealId) map.set(String(dealId), hasCompany);
     }
   } catch {
-    // If batch associations fail, fall back to marking all as unknown
     for (const id of dealIds) {
       map.set(id, false);
     }
   }
 
-  // Ensure all IDs have an entry
   for (const id of dealIds) {
     if (!map.has(id)) map.set(id, false);
   }
@@ -194,10 +234,11 @@ async function fetchCompanyAssociations(dealIds: string[]): Promise<Map<string, 
   return map;
 }
 
-export async function fetchAllDeals(): Promise<{ closedWon: Deal[]; active: Deal[] }> {
-  const [closedWon, active] = await Promise.all([
+export async function fetchAllDeals(): Promise<{ closedWon: Deal[]; active: Deal[]; closedLost: Deal[] }> {
+  const [closedWon, active, closedLost] = await Promise.all([
     fetchClosedWonDeals(),
     fetchActiveDeals(),
+    fetchClosedLostDeals(),
   ]);
-  return { closedWon, active };
+  return { closedWon, active, closedLost };
 }
